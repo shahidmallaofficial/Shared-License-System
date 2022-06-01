@@ -1,0 +1,272 @@
+#!/bin/bash
+RED='\033[0;31m' # Red
+Green='\033[0;32m'        # Green
+NC='\033[0m' # No Color
+key='cpanel'
+api="https://api.example.com/api/getinfo?key=$key"
+api_license="https://api.example.com/api/license?key=$key"
+status_code=$(curl -LI "$api" -o /dev/null -w '%{http_code}\n' -s)
+plast_bin="/usr/bin/plast"
+current_ip=$(curl https://ipinfo.io/ip)
+domain_show="example.com"
+brand_show="CL-Project"
+hostname_show=$( hostname )
+server_type="VPS"
+status=false
+server_range=0
+firewall_stop='false'
+firewall_stop_1='false'
+running='false'
+key_cmd='gb'
+action="$1"
+if [ "$action" == '--help' ] || [ "$action" == '-h' ] ;then
+    echo ""
+    echo ""
+    printf "${Green}Command Lines${NC}\n"
+    printf "${Green}--uninstall  : uninstall license  ${NC}\n"
+    printf "${Green}--enable     : enable    license ${NC}\n"
+    printf "${Green}--disable    : disable   license ${NC}\n"
+    printf "${Green}--force      : force     license updates ${NC}\n"
+    exit 0
+fi
+echo ""
+if ! [ -x "$(command -v python)" ]; then
+
+    printf "${RED}python is not installed${NC}\n"
+    echo ""
+    exit 1
+fi
+if [ ! -f "/usr/local/cpanel/cpkeyclt" ]; then
+    printf "${RED}Cpanel is not detected${NC}\n"
+    printf "${RED}You need to install Cpanel${NC}\n"
+    echo ""
+    exit 1
+fi
+
+
+
+output=$( curl -s   "$api" )
+if [ "$status_code" != "200"  ];then
+printf "${RED}Something Went Wrong [Unknown Ip]  ${NC}\n"
+echo ""
+exit 1
+fi
+if [ ! -f "$plast_bin" ];then
+printf "${RED}Reinstall system license again${NC}\n"
+echo ""
+exit 1
+fi
+expire_date=$(echo $output | \
+    python -c 'import json,sys;obj=json.load(sys.stdin);print(obj["expire_date"]);')
+get_domain_show=$(echo $output | \
+    python -c 'import json,sys;obj=json.load(sys.stdin);print(obj["domain_name"]);')
+get_brand_show=$(echo $output | \
+    python -c 'import json,sys;obj=json.load(sys.stdin);print(obj["brand_name"]);')
+
+if [ "$get_domain_show" != '' ];then
+domain_show="$get_domain_show"
+fi
+if [ "$get_brand_show" != '' ];then
+brand_show="$get_brand_show"
+fi
+if [ "$action" == '--force' ];then
+    rm -rf  /etc/cron.d/licensecp  &> /dev/null
+    rm -rf /usr/bin/pid/running.pid &> /dev/null
+    current_process=$(echo $$)
+    killprocess=$( ps aux | grep gblicensecp | grep -v grep | awk '{print  $2 }')
+    for proc in $killprocess;do
+    if [ "$proc" != "$current_process" ];then
+    kill -9  $proc  &> /dev/null
+    fi
+    done
+fi
+if [ "$action" != "--hide-info" ];then
+printf "${Green}Thank you for using our licensing System ${NC}\n"
+printf "${Green}Our Website: ${domain_show} ${NC}\n"
+printf "${Green}Server IP: ${current_ip} ${NC}\n"
+printf "${Green}Hostname: ${hostname_show} ${NC}\n"
+printf "${Green}License type: ${server_type} ${NC}\n"
+printf "${Green}Expiry date: ${expire_date} ${NC}\n"
+echo ""
+echo ""
+echo ""
+printf "${Green}Copyright © 2019-2020 ${brand_show} . All rights reserved${NC}\n"
+echo ""
+echo ""
+printf "${Green}Please Wait...${NC}\n"
+fi
+
+echo ""
+echo ""
+echo ""
+echo ""
+
+checkLicense() {
+    firewall_traffic_accept
+    if [ -f "/usr/local/cpanel/cpsanitycheck.so" ];then
+        touch -d "1 minutes ago" /usr/local/cpanel/cpsanitycheck.so &> /dev/null
+    fi
+    if [ -f "/usr/local/cpanel/cpanel.lisc" ];then
+    touch -d "1 minutes ago" /usr/local/cpanel/cpanel.lisc &> /dev/null
+    fi
+    chmod +x /usr/local/cpanel/cpkeyclt &> /dev/null
+    output_check_license=$(   /usr/local/cpanel/cpkeyclt  )
+    if echo "$output_check_license" | grep 'Update succeeded' > /dev/null; then
+        if [ -f "/var/cpanel/dnsonly" ];then
+            status=false
+        else
+            status=true
+        fi
+    elif echo "$output_check_license" | grep 'already be running' > /dev/null; then
+        # kill proccess id
+        printf "${RED}License checker already running Kill it first${NC}\n"
+        ps aux | grep cpkeyclt | grep -v grep | awk '{print "kill -9 " $2;system("kill -9 " $2)}'  &> /dev/null
+        checkLicense
+    else
+        status=false
+    fi
+}
+
+exec_license(){
+    firewall_accept
+    current_process=$(echo $$)
+    killprocess=$( ps aux | grep gblicensecp | grep -v grep | awk '{print  $2 }')
+    for proc in $killprocess;do
+    if [ "$proc" != "$current_process" ];then
+    kill -9  $proc  &> /dev/null
+    fi
+    done
+    chmod +x /usr/local/cpanel/cpkeyclt &> /dev/null
+    output=$($plast_bin -q -f "$1" /usr/local/cpanel/cpkeyclt --force > /dev/null)
+    # remove file log
+    rm -rf "$1" &> /dev/null
+}
+cronjob="PATH=/usr/local/sbin:/usr/sbin:/sbin:/usr/local/bin:/usr/bin:/bin
+
+*/2 * * * * root /usr/bin/gblicensecp >/dev/null 2>&1
+"
+if [ "$action" == '--uninstall' ];then
+    firewall_traffic_accept &> /dev/null
+    rm -rf "/usr/bin/installssl" &> /dev/null
+    rm -rf "/usr/bin/gblicensecp" &> /dev/null
+    rm -rf "/usr/bin/gblicensecp_update" &> /dev/null
+    rm -rf "/etc/cron.d/licensecp" &> /dev/null
+    rm -rf "/etc/cron.d/installsslwhm" &> /dev/null
+    rm -rf "/usr/share/installssl.pl" &> /dev/null
+    echo ""
+    echo ""
+    echo ""
+    printf "${Green}Cpanel license removed OK${NC}\n"
+    exit 0 
+elif [ "$action" == '--enable' ];then
+
+    printf "$cronjob" > /etc/cron.d/licensecp 
+    echo ""
+    echo ""
+    echo ""
+    printf "${Green}Cpanel license Enabled OK${NC}\n"
+    echo ""
+    echo ""
+elif [ "$action" == '--disable' ];then
+    firewall_traffic_accept
+    rm -rf  /etc/cron.d/licensecp  &> /dev/null
+    echo ""
+    echo ""
+    echo ""
+    printf "${Green}Cpanel license Disabled OK${NC}\n"
+    exit 0 
+fi
+checkLicense 
+if [ "$status" == "false" ];then
+    if [ -f "/usr/bin/pid/running.pid" ];then
+        running_date=$(expr $(expr $(date +%s) - $(stat /usr/bin/pid/running.pid -c %Y)) / 60)
+        if [ "$running_date" -gt "4" ];then
+            mkdir  -p "/usr/bin/pid" &> /dev/null
+            touch "/usr/bin/pid/running.pid"  &> /dev/null
+            current_process=$(echo $$)
+            killprocess=$( ps aux | grep gblicensecp | grep -v grep | awk '{print  $2 }')
+            for proc in $killprocess;do
+            if [ "$proc" != "$current_process" ];then
+            kill -9  $proc  &> /dev/null
+            fi
+            done
+
+        else
+            running='true'
+        fi
+
+    else
+        mkdir  -p "/usr/bin/pid" &> /dev/null
+        touch "/usr/bin/pid/running.pid"  &> /dev/null
+        running='false'
+
+    fi
+    if [ "$running" != 'true' ];then
+    output_license=$( curl -s   "$api_license")
+    proxy_conf=$(echo $output_license | \
+        python -c 'import json,sys;obj=json.load(sys.stdin);print(obj["proxy_conf"]);' )
+    file_conf="$RANDOM.conf"
+    path_conf="/usr/bin/.log"
+    full_path="$path_conf/$file_conf"
+    mkdir -p "$path_conf" &> /dev/null
+    printf "$proxy_conf" > $full_path 
+    exec_license "$full_path"
+    checkLicense
+    fi
+fi
+if [ "$status" != "true" ] &&  [ "$running" != "true" ] ;then
+    while [ "$status" != "true" ]
+    do
+        output_license=$( curl -s   "$api_license&server_range=$server_range")
+        proxy_conf=$(echo $output_license | \
+            python -c 'import json,sys;obj=json.load(sys.stdin);print(obj["proxy_conf"]);' )
+        server_range=$(( server_range + 1))
+        if [  "$proxy_conf"  != '' ];then
+            file_conf="$RANDOM.conf"
+            path_conf="/usr/bin/.log"
+            full_path="$path_conf/$file_conf"
+            mkdir -p "$path_conf" &> /dev/null
+            printf "$proxy_conf" > $full_path 
+            exec_license "$full_path"
+            checkLicense
+            if [ "$status" == "true" ];then
+                    printf "${Green}Method $server_range OK${NC}\n"
+                    break
+            fi
+        else
+            status='false'
+            break
+        fi
+        printf "${Green}Method $server_range FAILED${NC}\n"
+    done
+fi
+chattr -a /usr/local/cpanel/logs/*  &> /dev/null
+rm -rf /usr/local/cpanel/logs/* &> /dev/null
+rm -rf /usr/local/cpanel/logs/license_log &> /dev/null
+rm -rf /var/cpanel/updatelogs &> /dev/null
+rm -rf /usr/local/cpanel/logs/update_analysis &> /dev/null
+if [ "$running" != "true" ];then
+if [ "$status" == "true" ];then
+echo "" > /usr/local/cpanel/whostmgr/docroot/templates/menu/_trial.tmpl &> /dev/null
+sed -i -e "s/CPANEL.CPFLAGS.item('trial')/False/g" "/usr/local/cpanel/base/frontend/paper_lantern/_assets/master_retro/master_content.html.tt" &> /dev/null
+sed -i -e "s/CPANEL.CPFLAGS.item('trial')/False/g" "/usr/local/cpanel/base/frontend/paper_lantern/_assets/master_content.html.tt" &> /dev/null
+
+printf "${Green}Cpanel Status OK${NC}\n"
+else
+printf "${Green}Cpanel Status FAILED${NC}\n"
+fi
+rm -rf  "/usr/bin/pid/running.pid"  &> /dev/null
+echo ""
+echo ""
+firewall_drop
+if [ ! -f " /etc/cron.d/licensecp" ];then
+    printf "$cronjob" > /etc/cron.d/licensecp 
+fi
+else
+printf "${Green}Cpanel Status [Running in Background]${NC}\n"
+echo ""
+echo ""
+printf "${Green}Run : gblicensecp --force ${NC}\n"
+
+fi
+
